@@ -311,7 +311,7 @@ ompl::base::State *continuousSimulator(std::vector<double> inputs, ompl::base::S
 
     x1 = x1 + x3 * tFlow + x5 * pow(tFlow, 2) / 2; // x = v0 * t + 1/2(at^2)
     x2 = x2 + x4 * tFlow + x6 * pow(tFlow, 2) / 2; // x = v0 * t + 1/2(at^2)
-    x3 = x3 + (x5)*tFlow;                          // v = v0 + at
+    x3 = x3 + (x5)*tFlow; // v = v0 + at
     x4 = x4 + (x6)*tFlow;
     x5 += inputs[0];
     x6 += inputs[1]; // Set control input to 0 for flow
