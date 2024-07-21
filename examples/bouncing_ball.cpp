@@ -124,7 +124,7 @@ int main()
     // attempt to solve the planning problem within one second of
     // planning time
     ompl::base::PlannerStatus solved = cHyRRT.solve(ompl::base::timedPlannerTerminationCondition(10000));
-    cout << "solution status: " << solved << endl;
+    std::cout << "solution status: " << solved << std::endl;
 
     // // How to access the solution path as a vector
     // std::vector<ompl::geometric::HyRRT::Motion *> trajectory = cHyRRT.getTrajectoryMatrix();

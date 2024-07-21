@@ -3,6 +3,9 @@ find_package(ompl REQUIRED)
 add_library(HyRRT HyRRT.cpp)
 target_link_libraries(HyRRT ${OMPL_LIBRARIES})
 
+add_library(HySST HySST.cpp)
+target_link_libraries(HySST ${OMPL_LIBRARIES})
+
 set(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 
 find_package(Boost REQUIRED
@@ -19,3 +22,5 @@ include_directories(${HyRRT_SOURCE_DIR}) # Include the directory where HyRRT.h i
 # Include necessary directories
 include_directories(${OMPL_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+
+set(CMAKE_BUILD_TYPE Debug)

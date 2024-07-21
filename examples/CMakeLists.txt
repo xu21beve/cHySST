@@ -9,8 +9,8 @@ find_package(visualization_msgs REQUIRED)
 
 # Add executable for multicopter.cpp
 add_executable(multicopter multicopter.cpp)
-target_link_libraries(multicopter HyRRT ${OMPL_LIBRARIES})
-
+target_link_libraries(multicopter HySST ${OMPL_LIBRARIES})
+ 
 # Add executable for visualize.cpp
 add_executable(visualize visualize/src/ros_visualize.cpp)
 target_link_libraries(visualize ${RCLCPP_LIBRARIES})
@@ -45,3 +45,4 @@ ament_package()
 # Include necessary directories
 include_directories(${OMPL_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_BUILD_TYPE Debug)

@@ -9,4 +9,4 @@ echo $x_index $y_index $z_index > "coordinate_indices.txt"
 colcon build --packages-select visualize
 source install/local_setup.bash
 ros2 run visualize ros_visualize
-# ros2 run rviz2 rviz2
+ros2 run rviz2 rviz2
