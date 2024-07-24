@@ -49,10 +49,10 @@ ompl::geometric::HySST::HySST(const base::SpaceInformationPtr &si) : base::Plann
 {
     specs_.approximateSolutions = true;
     specs_.directed = true;
-    prevSolution_.clear();
+    // prevSolution_.clear();
 
-    addPlannerProgressProperty("best cost REAL", [this]
-                               { return std::to_string(this->prevSolutionCost_.value()); });
+    // addPlannerProgressProperty("best cost REAL", [this]
+    //                            { return std::to_string(this->prevSolutionCost_.value()); });
 }
 
 ompl::geometric::HySST::~HySST()
@@ -94,7 +94,7 @@ void ompl::geometric::HySST::setup()
         OMPL_WARN("%s: No optimization object set. Using path length", getName().c_str());
         opt_ = std::make_shared<base::PathLengthOptimizationObjective>(si_);
     }
-    prevSolutionCost_ = opt_->infiniteCost();
+    // prevSolutionCost_ = opt_->infiniteCost();
 }
 
 void ompl::geometric::HySST::clear()
@@ -106,8 +106,8 @@ void ompl::geometric::HySST::clear()
         nn_->clear();
     if (witnesses_)
         witnesses_->clear();
-    if (opt_)
-        prevSolutionCost_ = opt_->infiniteCost();
+    // if (opt_)
+    //     prevSolutionCost_ = opt_->infiniteCost();
 }
 
 void ompl::geometric::HySST::freeMemory()
@@ -135,12 +135,12 @@ void ompl::geometric::HySST::freeMemory()
         }
     }
 
-    for (auto &i : prevSolution_)
-    {
-        if (i)
-            si_->freeState(i);
-    }
-    prevSolution_.clear();
+    // for (auto &i : prevSolution_)
+    // {
+    //     if (i)
+    //         si_->freeState(i);
+    // }
+    // prevSolution_.clear();
 }
 
 ompl::geometric::HySST::Motion *ompl::geometric::HySST::selectNode(ompl::geometric::HySST::Motion *sample)
@@ -338,6 +338,8 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
 
     base::Goal *goal = pdef_->getGoal().get();
     auto *goal_s = dynamic_cast<base::GoalSampleableRegion *>(goal);
+    std::vector<Motion *> mpath;
+    int pathSize = 0;
 
     if (goal_s == nullptr)
     {
@@ -413,10 +415,12 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
             if (dMotion.size() > 1) // If collision occured during extension
             {
                 collisionParentMotion->accCost_ = cost;
+                collisionParentMotion->edge = dMotion[1]->edge;
                 si_->copyState(collisionParentMotion->state, dMotion[1]->state);
             }
             
             motion->parent = nmotion;
+            motion->edge = dMotion[0]->edge;
             nmotion->numChildren_++;
             closestWitness->linkRep(motion); // Create new edge and set the new node as the representative
 
@@ -426,22 +430,21 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
 
             // dist_ is calculated during the call to extend()
             bool solv = dist_ <= tolerance_;
-            if (solv && opt_->isCostBetterThan(motion->accCost_, prevSolutionCost_)) // If the new state is a solution and it has a lower cost than the previous solution
+            if (solv) // If the new state is a solution and it has a lower cost than the previous solution    //  && opt_->isCostBetterThan(motion->accCost_, prevSolutionCost_)
             {
                 approxdif = dist_;
                 solution = motion;
-
-                // for (auto &i : prevSolution_) // Free the previous solution. Uncomment for solution optimization branch.
-                //     if (i)
-                //         si_->freeState(i);
-                prevSolution_.clear();
+                
+                mpath.clear();
                 Motion *solTrav = solution; // Traverse the solution and save the states in prevSolution_
                 while (solTrav != nullptr)
                 {
-                    prevSolution_.push_back(si_->cloneState(solTrav->state));
+                    mpath.push_back(solTrav);
+                    if (solTrav->edge != nullptr)              // A jump motion does not contain an edge
+                        pathSize += solTrav->edge->size() + 1; // +1 for the end state
                     solTrav = solTrav->parent;
                 }
-                prevSolutionCost_ = solution->accCost_;
+                // prevSolutionCost_ = solution->accCost_;
 
                 OMPL_INFORM("Found solution with cost %.2f, a distance %.2f away from goal", solution->accCost_.value(), dist_);
                 sufficientlyShort = opt_->isSatisfied(solution->accCost_); // If the solution is sufficiently short (according to optimization ojective), stop search.
@@ -453,16 +456,24 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
                 approxdif = dist_;
                 approxsol = motion;
 
-                for (auto &i : prevSolution_)
-                {
-                    if (i)
-                        si_->freeState(i);
-                }
-                prevSolution_.clear();
+                if(approxsol == nullptr)
+                    std::cout << "Motion is null!" << std::endl;
+
+                // for (auto &i : prevSolution_)
+                // {
+                //     if (i)
+                //         si_->freeState(i);
+                // }
+                // prevSolution_.clear();
+
+                mpath.clear();
+
                 Motion *solTrav = approxsol;
                 while (solTrav != nullptr)
                 {
-                    prevSolution_.push_back(si_->cloneState(solTrav->state));
+                    mpath.push_back(solTrav);
+                    if (solTrav->edge != nullptr)              // A jump motion does not contain an edge
+                        pathSize += solTrav->edge->size() + 1; // +1 for the end state
                     solTrav = solTrav->parent;
                 }
             }
@@ -494,15 +505,40 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
     {
         solution = approxsol;
         approximate = true;
+        std::cout << "entered approximate solution" << std::endl;
     }
 
-    if (solution != nullptr)
+    // Construct the path from the goal to the start by following the parent pointers
+    // while (solution != nullptr)
+    // {
+    //     mpath.push_back(solution);
+    //     if (solution->edge != nullptr)              // A jump motion does not contain an edge
+    //         pathSize += solution->edge->size() + 1; // +1 for the end state
+    //     solution = solution->parent;
+    // }
+
+    if (mpath[mpath.size() - 1] != nullptr)
     {
-        /* set the solution path */
+        // Create a new path object to store the solution path
         auto path(std::make_shared<PathGeometric>(si_));
-        for (int i = prevSolution_.size() - 1; i >= 0; --i) {
-            path->append(prevSolution_[i]);
+
+        // Reserve space for the path states
+        path->getStates().reserve(pathSize);
+
+        // Add the states to the path in reverse order (from start to goal)
+        for (int i = mpath.size() - 1; i >= 0; --i)
+        {
+            // Append all intermediate states to the path, including starting state,
+            // excluding end vertex
+            if (mpath[i]->edge != nullptr)
+            { // A jump motion does not contain an edge
+                for (auto state : *(mpath[i]->edge))
+                {
+                    path->append(state); // Need to make a new motion to append to trajectory matrix
+                }
+            }
         }
+
         solved = true;
         pdef_->addSolutionPath(path, approximate, approxdif, getName());
     }
@@ -537,8 +573,8 @@ void ompl::geometric::HySST::getPlannerData(base::PlannerData &data) const
         if (allMotions[i]->getParent() != nullptr)
             allMotions.push_back(allMotions[i]->getParent());
 
-    if (prevSolution_.size() != 0)
-        data.addGoalVertex(base::PlannerDataVertex(prevSolution_[0]));
+    // if (prevSolution_.size() != 0)
+    //     data.addGoalVertex(base::PlannerDataVertex(prevSolution_[0]));
 
     for (auto &allMotion : allMotions)
     {
