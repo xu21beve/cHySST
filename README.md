@@ -37,7 +37,7 @@ This repository provides the implementation of **HySST** in C++, compatible with
 
 4. Clone the reposity.
     ```bash
-    git clone https://github.com/HybridSystemsLab/hybridRRT-Ccode.git
+    git clone https://github.com/HybridSystemsLab/hybridSST-Ccode.git
     ```
 
 

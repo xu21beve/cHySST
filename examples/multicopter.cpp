@@ -520,7 +520,7 @@ int main()
     std::cout << "solution status: " << solved << std::endl;
 
     // // How to access the solution path as a vector
-    // std::vector<ompl::geometric::HyRRT::Motion *> trajectory = cHySST.getTrajectoryMatrix();
+    // std::vector<ompl::geometric::HySST::Motion *> trajectory = cHySST.getTrajectoryMatrix();
     // for(auto &m : trajectory) {
     //     // Use m->as<ompl::base::RealVectorStateSpace::StateType>()->values[** desired index **]
     // }

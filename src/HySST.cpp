@@ -335,6 +335,7 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
 {
     checkValidity();
     checkMandatoryParametersSet();
+
     base::Goal *goal = pdef_->getGoal().get();
     auto *goal_s = dynamic_cast<base::GoalSampleableRegion *>(goal);
 
@@ -388,15 +389,11 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
         Motion *nmotion = selectNode(rmotion);
 
         std::vector<Motion *> dMotion = {new Motion(si_)};
-        double d = si_->distance(nmotion->state, rstate);
 
         dMotion = extend(nmotion, goal);
 
         if (dMotion.size() == 0) // If extension failed, continue to next iteration
-        {
-            si_->freeState(rstate);
             continue;
-        }
 
         si_->copyState(rstate, dMotion[0]->state); // copy the new state to the random state pointer. First value of dMotion vector will always be the newest state, even if a collision occurs
 
@@ -418,7 +415,7 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
                 collisionParentMotion->accCost_ = cost;
                 si_->copyState(collisionParentMotion->state, dMotion[1]->state);
             }
-
+            
             motion->parent = nmotion;
             nmotion->numChildren_++;
             closestWitness->linkRep(motion); // Create new edge and set the new node as the representative
@@ -451,24 +448,24 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
                 if (sufficientlyShort)
                     break;
             }
-            // if (solution == nullptr && dist_ < approxdif) // If no solution found and distance to goal of this new state is closer than before (because no gurantee of probabilistic completeness)
-            // {    // Uncomment this out for solution optimization branch.
-            //     approxdif = dist_;
-            //     approxsol = motion;
+            if (solution == nullptr && dist_ < approxdif) // If no solution found and distance to goal of this new state is closer than before (because no guarantee of probabilistic completeness). Also where approximate solutions are filled.
+            {
+                approxdif = dist_;
+                approxsol = motion;
 
-            //     for (auto &i : prevSolution_)
-            //     {
-            //         if (i)
-            //             si_->freeState(i);
-            //     }
-            //     prevSolution_.clear();
-            //     Motion *solTrav = approxsol;
-            //     while (solTrav != nullptr)
-            //     {
-            //         prevSolution_.push_back(si_->cloneState(solTrav->state));
-            //         solTrav = solTrav->parent;
-            //     }
-            // }
+                for (auto &i : prevSolution_)
+                {
+                    if (i)
+                        si_->freeState(i);
+                }
+                prevSolution_.clear();
+                Motion *solTrav = approxsol;
+                while (solTrav != nullptr)
+                {
+                    prevSolution_.push_back(si_->cloneState(solTrav->state));
+                    solTrav = solTrav->parent;
+                }
+            }
 
             if (oldRep != rmotion) // If the representative has changed (prune)
             {
