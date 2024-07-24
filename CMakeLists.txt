@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5...3.20)
-project(cHyRRT VERSION 0.1.0 LANGUAGES C CXX)
+project(cHySST VERSION 0.1.0 LANGUAGES C CXX)
 
 find_package(Boost REQUIRED
              COMPONENTS serialization filesystem system program_options
@@ -17,7 +17,7 @@ set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
-project(cHyRRT CXX)
+project(cHySST CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)

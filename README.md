@@ -1,4 +1,4 @@
-# cHyRRT
+# cHySST
 A C++ hybrid rapidly-exploring random tree motion planner, compatible with OMPL and ROS 2 Humble.
 
 <p align="center">
@@ -7,13 +7,13 @@ A C++ hybrid rapidly-exploring random tree motion planner, compatible with OMPL 
     <img width="100px" height="20px" src="https://img.shields.io/badge/ROS-humble-blue?logo=ROS&ROS=humble" alt="ROS" />
 </p>
 
-# Hybrid Rapidly-Exploring Random Trees (HyRRT)
+# Hybrid Stable Sparse-RRT (HySST)
 
 **Motion Planning** is a computational problem that involves finding a sequence of valid configurations to move the robot from the source to the destination. 
 
-This repository provides the implementation of **HyRRT** in C++, compatible with OMPL and ROS 2 Humble. Vertices are implemented as the datatype [ompl::base::State *](https://ompl.kavrakilab.org/classompl_1_1base_1_1State.html) and edges as vectors of the same datatype. The theory analysis of HyRRT can be found at [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/9992444). Furthermore, we already provide a [MATLAB](https://github.com/HybridSystemsLab/hybridRRT) version, without compatibility with OMPL and ROS.
+This repository provides the implementation of **HySST** in C++, compatible with OMPL and ROS 2 Humble. Vertices are implemented as the datatype [ompl::base::State *](https://ompl.kavrakilab.org/classompl_1_1base_1_1State.html) and edges a class containing the same datatype and its parent. The theory analysis of HySST can be found at [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/10383466). Furthermore, we already provide a [MATLAB](https://github.com/HybridSystemsLab/hybridSST) version, without compatibility with OMPL and ROS.
 
-**Your stars, forks and PRs are welcome!** If you do use this code, please cite the publication [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/9992444).
+**Your stars, forks and PRs are welcome!** If you do use this code, please cite the publication [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/10383466).
 
 ## Contents
 - [Quick Start](#0)
@@ -61,13 +61,6 @@ This repository provides the implementation of **HyRRT** in C++, compatible with
 3. Run the Executables
 
    Now, you can run the generated executable files located in the `build/examples` folder. You can do this using the following commands:
-
-   - For the Bouncing Ball example, navigate to the project root directory and execute the `bouncing_ball` executable as follows:
-     ```
-     cd ..
-     ./build/examples/bouncing_ball
-     ```
-
    - For the multicopter example, execute the `multicopter` executable as follows:
      ```
      ./build/examples/multicopter
@@ -83,7 +76,7 @@ This repository provides the implementation of **HyRRT** in C++, compatible with
      cd examples/visualize
     ```
   - If you would like to visualize multicopter example with obstacles, uncomment lines 208-210
-  - Paste the trajectory matrix output from running `bouncing_ball.cpp`, `multicopter.cpp`, or any other implementation of HyRRT into `points.txt`.
+  - Paste the trajectory matrix output from running `multicopter.cpp` or any other implementation of HySST into `points.txt`.
   - Run rosrun.bash, and follow the instructions within the terminal. Note that this visualization is limited to three dimentions. 
     ```
      ./rosrun.bash
@@ -95,13 +88,12 @@ This repository provides the implementation of **HyRRT** in C++, compatible with
 The overall modifiable file structure is shown below.
 ```
 /root_directory
-├── HyRRT.h
+├── HySST.h
 ├── yourOtherFiles.cpp
 └── src
-    ├── HyRRT.cpp
+    ├── HySST.cpp
     └── yourSrcFiles.cpp
 └── examples
-    ├── bouncing_ball.cpp
     ├── multicopter.cpp
     └── yourSrcFiles.cpp
 ```
@@ -116,6 +108,8 @@ For more information about the project's customizeable parameters, please refer 
 |Yes| minJumpInputValue_ | Vector of minimum input values for integration in the jump regime. (std::vector<double>)
 |Yes| Tm_ | The maximum flow time for a given flow propagation step. (double)
 |Yes| flowStepDuration_ | The flow time for a given integration step, within a flow propagation step. (double)
+|Yes| selectionRadius_ | The radius for selecting vertices closest to a randomly sampled vertex. (double)
+|Yes| pruningRadius_ | The radius for pruning representative vertices for the witness set. (double)
 |No| goalTolerance_ | The distance tolerance from the goal state for a state to be regarded as a valid final state. Default is .1 (double)
 |Yes| jumpSet_ | Function that returns true if a state is in the jump set, and false if not. (std::function<bool(ompl::base::State *)>)
 |Yes| flowSet_ | Function that returns true if a state is in the flow set, and false if not. (std::function<bool(ompl::base::State *)>)
@@ -123,7 +117,7 @@ For more information about the project's customizeable parameters, please refer 
 |No| distanceFunc_ | Function that computes distance between states, default is Euclidean distance. (std::function<double(ompl::base::State *, ompl::base::State *)>)
 |Yes| discreteSimulator_ | Jump map for propagating a state once. (std::function<ompl::base::State *(ompl::base::State *x_cur, double u, ompl::base::State *x_new)>)
 |Yes| continuousSimulator_ | Flow map for propagating a state over the given flow time. (std::function<base::State *(std::vector<double> input, ompl::base::State *x_cur, double Tm_rand, ompl::base::State *x_new)>)
-|No| collisionChecker_ | Function that returns true and modifies the state if collides into the obstacleSet. Default is point-by-point collision checking using the jump set. Refer to **HyRRT.h** for method signature. 
+|No| collisionChecker_ | Function that returns true and modifies the state if collides into the obstacleSet. Default is point-by-point collision checking using the jump set. Refer to **HySST.h** for method signature. 
 
 For more information about the project's available random sampling distributions for inputs, please refer to the following table. All descriptions and names are credited to [the Open Motion Planning Library (OMPL)](https://ompl.kavrakilab.org/)
 | Name | Description | Required Parameters |

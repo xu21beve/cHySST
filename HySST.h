@@ -1,7 +1,7 @@
 /*********************************************************************
 * Software License Agreement (BSD License)
 *
-*  Copyright (c) 2015, Rutgers the State University of New Jersey, New Brunswick
+*  Copyright (c) 2024, University of Santa Cruz Hybrid Systems Laboratory
 *  All rights reserved.
 *
 *  Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/* Authors: Zakary Littlefield */
+/* Authors: Beverly Xu */
+/* Adapted from: ompl/geometric/planners/src/SST.cpp by  Zakary Littlefield of Rutgers the State University of New Jersey, New Brunswick */
 
 #ifndef OMPL_GEOMETRIC_PLANNERS_SST_HySST_
 #define OMPL_GEOMETRIC_PLANNERS_SST_HySST_
@@ -52,9 +53,8 @@ namespace ompl
            to use an alternative method that makes use of a steering function. Using HySST for
            geometric problems does not take advantage of this function.
            @par External documentation
-           Yanbo Li, Zakary Littlefield, Kostas E. Bekris, Sampling-based
-           Asymptotically Optimal Sampling-based Kinodynamic Planning.
-           [[PDF]](https://arxiv.org/abs/1407.2896)
+           N. Wang and R. G. Sanfelice, "HySST: An Asymptotically Near-Optimal Motion Planning Algorithm for Hybrid Systems."
+           [[PDF]](https://arxiv.org/pdf/2305.18649)
         */
         class HySST : public base::Planner
         {
@@ -75,40 +75,6 @@ namespace ompl
                 input data to the planner has changed and you do not
                 want to continue planning */
             void clear() override;
-
-            /** In the process of randomly selecting states in the state
-                space to attempt to go towards, the algorithm may in fact
-                choose the actual goal state, if it knows it, with some
-                probability. This probability is a real number between 0.0
-                and 1.0; its value should usually be around 0.05 and
-                should not be too large. It is probably a good idea to use
-                the default value. */
-            void setGoalBias(double goalBias)
-            {
-                goalBias_ = goalBias;
-            }
-
-            /** \brief Get the goal bias the planner is using */
-            double getGoalBias() const
-            {
-                return goalBias_;
-            }
-
-            /** \brief Set the range the planner is supposed to use.
-
-                This parameter greatly influences the runtime of the
-                algorithm. It represents the maximum length of a
-                motion to be added in the tree of motions. */
-            void setRange(double distance)
-            {
-                maxDistance_ = distance;
-            }
-
-            /** \brief Get the range the planner is using */
-            double getRange() const
-            {
-                return maxDistance_;
-            }
 
             /**
                 \brief Set the radius for selecting nodes relative to random sample.
@@ -388,6 +354,10 @@ namespace ompl
                     throw Exception("Min input value (minFlowInputValue) not set");
                 if (!flowStepDuration_)
                     throw Exception("Flow step length (flowStepDuration_) not set");
+                if (!pruningRadius_)
+                    throw Exception("Pruning radius (pruningRadius_) not set");
+                if (!selectionRadius_)
+                    throw Exception("Selection radius (selectionRadius_) not set");
             }
 
         protected:
@@ -531,7 +501,10 @@ namespace ompl
              * Customize using setter functions above. */
 
             /** \brief Compute distance between states, default is Euclidean distance */
-            std::function<double(base::State *state1, base::State *state2)> distanceFunc_;
+            std::function<double(base::State *state1, base::State *state2)> distanceFunc_ = [this](base::State *state1, base::State *state2) -> double
+            {
+                return si_->distance(state1, state2);
+            };
 
             /** \brief The maximum flow time for a given flow propagation step. Must be
              * set by the user */
@@ -599,33 +572,23 @@ namespace ompl
             /** \brief Free the memory allocated by this planner */
             void freeMemory();
 
-            /** \brief Compute distance between motions (actually distance between contained states) */
-            double distanceFunction(const Motion *a, const Motion *b) const
-            {
-                return si_->distance(a->state, b->state);
-            }
-
             /** \brief State sampler */
             base::StateSamplerPtr sampler_;
 
             /** \brief A nearest-neighbors datastructure containing the tree of witness motions */
             std::shared_ptr<NearestNeighbors<Motion *>> witnesses_;
 
-            /** \brief The fraction of time the goal is picked as the state to expand towards (if such a state is
-             * available) */
-            double goalBias_{.05};
+            /** \brief The radius for determining the node selected for extension. Delta_s. */
+            double selectionRadius_;   
 
-            /** \brief The maximum length of a motion to be added to a tree */
-            double maxDistance_{5.};
-
-            /** \brief The radius for determining the node selected for extension. */
-            double selectionRadius_{5.};
-
-            /** \brief The radius for determining the size of the pruning region. */
-            double pruningRadius_{3.};
+            /** \brief The radius for determining the size of the pruning region. Delta_bn. */
+            double pruningRadius_;
 
             /** \brief The random number generator */
             RNG rng_;
+
+            /** \brief Minimum distance from goal of generated trajectories. */
+            double dist_;
 
             /** \brief The best solution we found so far. */
             std::vector<base::State *> prevSolution_;

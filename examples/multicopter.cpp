@@ -311,7 +311,7 @@ ompl::base::State *continuousSimulator(std::vector<double> inputs, ompl::base::S
 
     x1 = x1 + x3 * tFlow + x5 * pow(tFlow, 2) / 2; // x = v0 * t + 1/2(at^2)
     x2 = x2 + x4 * tFlow + x6 * pow(tFlow, 2) / 2; // x = v0 * t + 1/2(at^2)
-    x3 = x3 + (x5)*tFlow; // v = v0 + at
+    x3 = x3 + (x5)*tFlow;                          // v = v0 + at
     x4 = x4 + (x6)*tFlow;
     x5 += inputs[0];
     x6 += inputs[1]; // Set control input to 0 for flow
@@ -329,7 +329,7 @@ ompl::base::State *continuousSimulator(std::vector<double> inputs, ompl::base::S
     return new_state;
 }
 
-/** \brief Simulates the dynamics of the ball when in jump regime, with input from the surface. */
+/** \brief Simulates the dynamics of the multicopter when in jump regime, with input from the surface. */
 ompl::base::State *discreteSimulator(ompl::base::State *x_cur, std::vector<double> u, ompl::base::State *new_state)
 {
     double x1 = x_cur->as<ompl::base::RealVectorStateSpace::StateType>()->values[0];
@@ -422,17 +422,27 @@ bool collisionChecker(std::vector<ompl::base::State *> *propStepStates, std::fun
     return collision;
 }
 
+/** \brief Cost function of minimal hybrid time. */
 class TimeObjective : public ompl::base::StateCostIntegralObjective
 {
 public:
-    TimeObjective(const ompl::base::SpaceInformationPtr &si) : ompl::base::StateCostIntegralObjective(si, true)
+    TimeObjective(const ompl::base::SpaceInformationPtr &si) : ompl::base::StateCostIntegralObjective(si)
     {
+        setCostThreshold(ompl::base::Cost(200));
     }
 
     ompl::base::Cost stateCost(const ompl::base::State *state) const
     {
-        return ompl::base::Cost(state->as<ompl::base::RealVectorStateSpace::StateType>()->values[0] + state->as<ompl::base::RealVectorStateSpace::StateType>()->values[1]);
+        return ompl::base::Cost(state->as<ompl::base::RealVectorStateSpace::StateType>()->values[8] + state->as<ompl::base::RealVectorStateSpace::StateType>()->values[9]);
     }
+
+    ompl::base::Cost motionCost(const ompl::base::State *state1, const ompl::base::State *state2) const
+    {
+        return ompl::base::Cost(state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[8] + state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[9]
+                     - state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[8] - state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[9]);
+    }
+
+    // bool isSatisfied(Cost c) { return true; }
 };
 
 int main()
@@ -441,10 +451,10 @@ int main()
     ompl::base::RealVectorStateSpace *statespace = new ompl::base::RealVectorStateSpace(0);
     statespace->addDimension(0.5, 6.0);
     statespace->addDimension(0, 5);
-    statespace->addDimension(-3, 8);
-    statespace->addDimension(-3, 100000);
-    statespace->addDimension(-3, 3);
-    statespace->addDimension(-3, 3);
+    statespace->addDimension(-3, 200);
+    statespace->addDimension(-3, 200);
+    statespace->addDimension(-3, 200);
+    statespace->addDimension(-3, 200);
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
@@ -462,8 +472,8 @@ int main()
     ompl::base::ScopedState<> start(space);
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[0] = 1;
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[1] = 2;
-    start->as<ompl::base::RealVectorStateSpace::StateType>()->values[2] = 6;
-    start->as<ompl::base::RealVectorStateSpace::StateType>()->values[3] = -1;
+    start->as<ompl::base::RealVectorStateSpace::StateType>()->values[2] = 0;
+    start->as<ompl::base::RealVectorStateSpace::StateType>()->values[3] = 0;
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[4] = 0;
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[5] = 0;
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[6] = 0;
@@ -484,31 +494,33 @@ int main()
     pdef->setStartAndGoalStates(start, goal, 0.1);
     pdef->setOptimizationObjective(ompl::base::OptimizationObjectivePtr(new TimeObjective(si)));
 
-    ompl::geometric::HySST cHyRRT(si);
+    ompl::geometric::HySST cHySST(si);
 
     // Set the problem instance for our planner to solve
-    cHyRRT.setProblemDefinition(pdef);
-    cHyRRT.setup();
-    cHyRRT.setDistanceFunction(distanceFunc);
-    cHyRRT.setContinuousSimulator(continuousSimulator);
-    cHyRRT.setDiscreteSimulator(discreteSimulator);
-    cHyRRT.setFlowSet(flowSet);
-    cHyRRT.setJumpSet(jumpSet);
-    cHyRRT.setTm(0.5);
-    cHyRRT.setFlowStepDuration(0.01);
-    cHyRRT.setFlowInputRange(std::vector<double>{-0.5, -1}, std::vector<double>{1, 1});
-    cHyRRT.setJumpInputRange(std::vector<double>{0, 0}, std::vector<double>{0, 0});
-    cHyRRT.setUnsafeSet(unsafeSet);
-    cHyRRT.setGoalTolerance(0.2);
-    cHyRRT.setCollisionChecker(collisionChecker);
+    cHySST.setProblemDefinition(pdef);
+    cHySST.setup();
+    cHySST.setDistanceFunction(distanceFunc);
+    cHySST.setContinuousSimulator(continuousSimulator);
+    cHySST.setDiscreteSimulator(discreteSimulator);
+    cHySST.setFlowSet(flowSet);
+    cHySST.setJumpSet(jumpSet);
+    cHySST.setTm(0.5);
+    cHySST.setFlowStepDuration(0.01);
+    cHySST.setFlowInputRange(std::vector<double>{-0.5, -1}, std::vector<double>{1, 1});
+    cHySST.setJumpInputRange(std::vector<double>{0, 0}, std::vector<double>{0, 0});
+    cHySST.setUnsafeSet(unsafeSet);
+    cHySST.setCollisionChecker(collisionChecker);
+    cHySST.setGoalTolerance(0.3);
+    cHySST.setSelectionRadius(0.15);
+    cHySST.setPruningRadius(0.1);
 
     // attempt to solve the planning problem within one second of
     // planning time
-    ompl::base::PlannerStatus solved = cHyRRT.solve(ompl::base::timedPlannerTerminationCondition(10000));
+    ompl::base::PlannerStatus solved = cHySST.solve(ompl::base::timedPlannerTerminationCondition(10000));
     std::cout << "solution status: " << solved << std::endl;
 
     // // How to access the solution path as a vector
-    // std::vector<ompl::geometric::HyRRT::Motion *> trajectory = cHyRRT.getTrajectoryMatrix();
+    // std::vector<ompl::geometric::HyRRT::Motion *> trajectory = cHySST.getTrajectoryMatrix();
     // for(auto &m : trajectory) {
     //     // Use m->as<ompl::base::RealVectorStateSpace::StateType>()->values[** desired index **]
     // }

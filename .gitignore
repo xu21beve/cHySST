@@ -61,6 +61,7 @@ examples/CTestTestfile.cmake
 examples/examples/cmake_install.cmake
 examples/log/
 Makefile
+src/Makefile
 
 # Visual Studio files
 .vs/
