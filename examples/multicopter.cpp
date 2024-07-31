@@ -451,24 +451,23 @@ int main()
     ompl::base::RealVectorStateSpace *statespace = new ompl::base::RealVectorStateSpace(0);
     statespace->addDimension(0.5, 6.0);
     statespace->addDimension(0, 5);
-    statespace->addDimension(-3, 200);
-    statespace->addDimension(-3, 200);
-    statespace->addDimension(-3, 200);
-    statespace->addDimension(-3, 200);
+    statespace->addDimension(-3, 8);
+    statespace->addDimension(-3, 100000);
+    statespace->addDimension(-3, 3);
+    statespace->addDimension(-3, 3);
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
     statespace->addDimension(0, std::numeric_limits<double>::epsilon());
 
-    ompl::base::StateSpacePtr space(statespace); // Adding in third dimension for jump time (change to 3 later)
+    ompl::base::StateSpacePtr space(statespace);
 
     // Construct a space information instance for this state space
     ompl::base::SpaceInformationPtr si(new ompl::base::SpaceInformation(space));
 
     si->setup();
 
-    // Set our robot's starting state to be the bottom-left corner of
-    // the environment, or (0,0).
+    // Set start state to be (1, 2)
     ompl::base::ScopedState<> start(space);
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[0] = 1;
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[1] = 2;
@@ -481,8 +480,7 @@ int main()
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[8] = 0;
     start->as<ompl::base::RealVectorStateSpace::StateType>()->values[9] = 0;
 
-    // Set our robot's goal state to be the top-right corner of the
-    // environment, or (1,1).
+    // Set goal state to be (5, 4)
     ompl::base::ScopedState<> goal(space);
     goal->as<ompl::base::RealVectorStateSpace::StateType>()->values[0] = 5;
     goal->as<ompl::base::RealVectorStateSpace::StateType>()->values[1] = 4;
@@ -491,12 +489,11 @@ int main()
     ompl::base::ProblemDefinitionPtr pdef(new ompl::base::ProblemDefinition(si));
 
     // Set the start and goal states
-    pdef->setStartAndGoalStates(start, goal, 0.1);
-    pdef->setOptimizationObjective(ompl::base::OptimizationObjectivePtr(new TimeObjective(si)));
+    pdef->setStartAndGoalStates(start, goal);
 
     ompl::geometric::HySST cHySST(si);
 
-    // Set the problem instance for our planner to solve
+    // Set parameters
     cHySST.setProblemDefinition(pdef);
     cHySST.setup();
     cHySST.setDistanceFunction(distanceFunc);
@@ -510,18 +507,10 @@ int main()
     cHySST.setJumpInputRange(std::vector<double>{0, 0}, std::vector<double>{0, 0});
     cHySST.setUnsafeSet(unsafeSet);
     cHySST.setCollisionChecker(collisionChecker);
-    cHySST.setGoalTolerance(0.3);
-    cHySST.setSelectionRadius(0.15);
-    cHySST.setPruningRadius(0.1);
+    cHySST.setSelectionRadius(0.03);
+    cHySST.setPruningRadius(0.02);
 
-    // attempt to solve the planning problem within one second of
-    // planning time
-    ompl::base::PlannerStatus solved = cHySST.solve(ompl::base::timedPlannerTerminationCondition(10000));
+    // attempt to solve the planning problem within 10 seconds
+    ompl::base::PlannerStatus solved = cHySST.solve(ompl::base::timedPlannerTerminationCondition(10));
     std::cout << "solution status: " << solved << std::endl;
-
-    // // How to access the solution path as a vector
-    // std::vector<ompl::geometric::HySST::Motion *> trajectory = cHySST.getTrajectoryMatrix();
-    // for(auto &m : trajectory) {
-    //     // Use m->as<ompl::base::RealVectorStateSpace::StateType>()->values[** desired index **]
-    // }
 }

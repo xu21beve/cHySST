@@ -86,6 +86,8 @@ namespace ompl
                 around the boundary of the state space may become impossible. */
             void setSelectionRadius(double selectionRadius)
             {
+                if (selectionRadius < 0)
+                    throw Exception("Selection radius must be positive");
                 selectionRadius_ = selectionRadius;
             }
 
@@ -107,6 +109,8 @@ namespace ompl
                 from their parent nodes.*/
             void setPruningRadius(double pruningRadius)
             {
+                if (pruningRadius < 0)
+                    throw ompl::Exception("Pruning radius must be non-negative");
                 pruningRadius_ = pruningRadius;
             }
 
@@ -342,8 +346,8 @@ namespace ompl
                     throw Exception("Jump set not set");
                 if (!unsafeSet_)
                     throw Exception("Unsafe set not set");
-                if (!tM_)
-                    throw Exception("Max flow propagation time (Tm) no set");
+                if (tM_ < 0.0)
+                    throw Exception("Max flow propagation time (Tm) not set");
                 if (maxJumpInputValue_.size() == 0)
                     throw Exception("Max input value (maxJumpInputValue) not set");
                 if (minJumpInputValue_.size() == 0)
@@ -354,9 +358,9 @@ namespace ompl
                     throw Exception("Min input value (minFlowInputValue) not set");
                 if (!flowStepDuration_)
                     throw Exception("Flow step length (flowStepDuration_) not set");
-                if (!pruningRadius_)
+                if (pruningRadius_ < 0)
                     throw Exception("Pruning radius (pruningRadius_) not set");
-                if (!selectionRadius_)
+                if (selectionRadius_ < 0)
                     throw Exception("Selection radius (selectionRadius_) not set");
             }
 
@@ -401,7 +405,7 @@ namespace ompl
                 bool inactive_{false};
 
                 /// \brief The integration steps defining the edge of the motion, between the parent and child vertices
-                std::vector<base::State *> *edge{nullptr};
+                std::vector<base::State *> *solutionPair{nullptr};
             };
 
             class Witness : public Motion
@@ -508,7 +512,7 @@ namespace ompl
 
             /** \brief The maximum flow time for a given flow propagation step. Must be
              * set by the user */
-            double tM_;
+            double tM_{-1.};
 
             /** \brief The distance tolerance from the goal state for a state to be
              * regarded as a valid final state. Default is .1 */
@@ -579,10 +583,10 @@ namespace ompl
             std::shared_ptr<NearestNeighbors<Motion *>> witnesses_;
 
             /** \brief The radius for determining the node selected for extension. Delta_s. */
-            double selectionRadius_;   
+            double selectionRadius_{-1.};   
 
             /** \brief The radius for determining the size of the pruning region. Delta_bn. */
-            double pruningRadius_;
+            double pruningRadius_{-1.};
 
             /** \brief The random number generator */
             RNG rng_;
@@ -598,6 +602,8 @@ namespace ompl
 
             /** \brief The optimization objective. */
             base::OptimizationObjectivePtr opt_;
+
+            double totalCollisionTime{.0};
         };
     }
 }
