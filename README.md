@@ -11,7 +11,7 @@ A C++ hybrid rapidly-exploring random tree motion planner, compatible with OMPL 
 
 **Motion Planning** is a computational problem that involves finding a sequence of valid configurations to move the robot from the source to the destination. 
 
-This repository provides the implementation of **HySST** in C++, compatible with OMPL and ROS 2 Humble. Vertices are implemented as the datatype [ompl::base::State *](https://ompl.kavrakilab.org/classompl_1_1base_1_1State.html) and edges a class containing the same datatype and its parent. The theory analysis of HySST can be found at [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/10383466). Furthermore, we already provide a [MATLAB](https://github.com/HybridSystemsLab/hybridSST) version, without compatibility with OMPL and ROS.
+This repository provides the implementation of **HySST** in C++, compatible with OMPL and ROS 2 Humble. Vertices are implemented as the class `ompl::geometric::planners::RRT::HySST::Motion` (see `HySST.h`) and edges as a pointer to the parent vertex of the same type, contained within each Motion. As these pointers cannot contain additional information to store the solution pair, the solution pair is instead stored within the child vertex, as an attribute of the `Motion` class. The theory analysis of HySST can be found at [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/10383466). Furthermore, we already provide a [MATLAB](https://github.com/HybridSystemsLab/hybridSST) version, without compatibility with OMPL and ROS.
 
 **Your stars, forks and PRs are welcome!** If you do use this code, please cite the publication [N. Wang and R. G. Sanfelice](https://ieeexplore.ieee.org/document/10383466).
 
