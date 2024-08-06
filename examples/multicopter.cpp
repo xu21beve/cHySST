@@ -426,9 +426,9 @@ bool collisionChecker(std::vector<ompl::base::State *> *propStepStates, std::fun
 class TimeObjective : public ompl::base::StateCostIntegralObjective
 {
 public:
-    TimeObjective(const ompl::base::SpaceInformationPtr &si) : ompl::base::StateCostIntegralObjective(si)
+    TimeObjective(const ompl::base::SpaceInformationPtr &si, double cost) : ompl::base::StateCostIntegralObjective(si)
     {
-        setCostThreshold(ompl::base::Cost(200));
+        setCostThreshold(ompl::base::Cost(cost));
     }
 
     ompl::base::Cost stateCost(const ompl::base::State *state) const
@@ -441,8 +441,6 @@ public:
         return ompl::base::Cost(state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[8] + state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[9]
                      - state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[8] - state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[9]);
     }
-
-    // bool isSatisfied(Cost c) { return true; }
 };
 
 int main()
@@ -490,6 +488,7 @@ int main()
 
     // Set the start and goal states
     pdef->setStartAndGoalStates(start, goal);
+    pdef->setOptimizationObjective(ompl::base::OptimizationObjectivePtr(new TimeObjective(si, 10)));
 
     ompl::geometric::HySST cHySST(si);
 
