@@ -49,10 +49,10 @@ ompl::geometric::HySST::HySST(const base::SpaceInformationPtr &si) : base::Plann
 {
     specs_.approximateSolutions = true;
     specs_.directed = true;
-    // prevSolution_.clear();
+    prevSolution_.clear();
 
-    // addPlannerProgressProperty("best cost REAL", [this]
-    //                            { return std::to_string(this->prevSolutionCost_.value()); });
+    addPlannerProgressProperty("best cost REAL", [this]
+                               { return std::to_string(this->prevSolutionCost_.value()); });
 }
 
 ompl::geometric::HySST::~HySST()
@@ -96,7 +96,7 @@ void ompl::geometric::HySST::setup()
         OMPL_WARN("%s: No optimization object set. Using path length", getName().c_str());
         opt_ = std::make_shared<base::PathLengthOptimizationObjective>(si_);
     }
-    // prevSolutionCost_ = opt_->infiniteCost();
+    prevSolutionCost_ = opt_->infiniteCost();
 }
 
 void ompl::geometric::HySST::clear()
@@ -108,8 +108,8 @@ void ompl::geometric::HySST::clear()
         nn_->clear();
     if (witnesses_)
         witnesses_->clear();
-    // if (opt_)
-    //     prevSolutionCost_ = opt_->infiniteCost();
+    if (opt_)
+        prevSolutionCost_ = opt_->infiniteCost();
 }
 
 void ompl::geometric::HySST::freeMemory()
@@ -137,12 +137,7 @@ void ompl::geometric::HySST::freeMemory()
         }
     }
 
-    // for (auto &i : prevSolution_)
-    // {
-    //     if (i)
-    //         si_->freeState(i);
-    // }
-    // prevSolution_.clear();
+    prevSolution_.clear();
 }
 
 ompl::geometric::HySST::Motion *ompl::geometric::HySST::selectNode(ompl::geometric::HySST::Motion *sample)
@@ -152,7 +147,7 @@ ompl::geometric::HySST::Motion *ompl::geometric::HySST::selectNode(ompl::geometr
     base::Cost bestCost = opt_->infiniteCost();
     nn_->nearestR(sample, selectionRadius_, ret); // Find the nearest nodes within the selection radius of the random sample
 
-    for (auto &i : ret)                           // Find the active node with the best cost within the selection radius
+    for (auto &i : ret) // Find the active node with the best cost within the selection radius
     {
         if (!i->inactive_ && opt_->isCostBetterThan(i->accCost_, bestCost))
         {
@@ -344,7 +339,6 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
 
     base::Goal *goal = pdef_->getGoal().get();
     auto *goal_s = dynamic_cast<base::GoalSampleableRegion *>(goal);
-    std::vector<Motion *> mpath;
     int pathSize = 0;
 
     if (goal_s == nullptr)
@@ -423,7 +417,7 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
             if (dMotion.size() > 1) // If collision occured during extension
             {
                 collisionParentMotion = dMotion[1];
-                collisionParentMotion->accCost_ = opt_->combineCosts(nmotion->accCost_, opt_->motionCost(nmotion->state,  dMotion[1]->state));
+                collisionParentMotion->accCost_ = opt_->combineCosts(nmotion->accCost_, opt_->motionCost(nmotion->state, dMotion[1]->state));
             }
 
             nmotion->numChildren_++;
@@ -431,27 +425,28 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
 
             nn_->add(motion); // Add new node to tree
 
-            if (dMotion.size() > 1) {
+            if (dMotion.size() > 1)
+            {
                 nn_->add(collisionParentMotion);
             }
 
             // dist_ is calculated during the call to extend()
             bool solv = dist_ <= tolerance_;
-            if (solv) // If the new state is a solution and it has a lower cost than the previous solution    //  && opt_->isCostBetterThan(motion->accCost_, prevSolutionCost_)
+            if (solv && opt_->isCostBetterThan(motion->accCost_, prevSolutionCost_)) // If the new state is a solution and it has a lower cost than the previous solution
             {
                 approxdif = dist_;
                 solution = motion;
 
-                mpath.clear();
+                prevSolution_.clear();
                 Motion *solTrav = solution; // Traverse the solution and save the states in prevSolution_
                 while (solTrav != nullptr)
                 {
-                    mpath.push_back(solTrav);
+                    prevSolution_.push_back(solTrav);
                     if (solTrav->solutionPair != nullptr)              // A jump motion does not contain an edge
                         pathSize += solTrav->solutionPair->size() + 1; // +1 for the end state
                     solTrav = solTrav->parent;
                 }
-                // prevSolutionCost_ = solution->accCost_;
+                prevSolutionCost_ = solution->accCost_;
 
                 OMPL_INFORM("Found solution with cost %.2f, a distance %.2f away from goal", solution->accCost_.value(), dist_);
                 sufficientlyShort = opt_->isSatisfied(solution->accCost_); // If the solution is sufficiently short (according to optimization ojective), stop search.
@@ -463,60 +458,41 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
                 approxdif = dist_;
                 approxsol = motion;
 
-                if (approxsol == nullptr)
-                    std::cout << "Motion is null!" << std::endl;
-
-                // for (auto &i : prevSolution_)
-                // {
-                //     if (i)
-                //         si_->freeState(i);
-                // }
-                // prevSolution_.clear();
-
-                mpath.clear();
-
+                prevSolution_.clear();
                 Motion *solTrav = approxsol;
                 while (solTrav != nullptr)
                 {
-                    mpath.push_back(solTrav);
-                    if (solTrav->solutionPair != nullptr)              // A jump motion does not contain an solutionPair
-                        pathSize += solTrav->solutionPair->size() + 1; // +1 for the end state
+                    prevSolution_.push_back(solTrav);
                     solTrav = solTrav->parent;
                 }
+                prevSolutionCost_ = motion->accCost_;
             }
 
             if (oldRep != rmotion) // If the representative has changed (prune)
             {
                 int i = 1;
-                oldRep->inactive_ = true;                              // Mark the node as inactive
+                oldRep->inactive_ = true; // Mark the node as inactive
                 inactiveVertices++;
                 while (oldRep->inactive_ && oldRep->numChildren_ == 0) // While the current node is inactive and is a leaf, remove it (non-leaf nodes have been marked inactive)
                 {
-                    // printf("%dst iteration", i);
                     i++;
                     nn_->remove(oldRep); // Remove from list of active nodes
-
-                    // print the oldRep->parent->state
-                    // si_->printState(oldRep->state);
 
                     if (oldRep->state)
                         si_->freeState(oldRep->state);
 
                     oldRep->state = nullptr;
 
-                    // if (oldRep->parent->state) {
-                        Motion *oldRepParent = oldRep->parent;
-                        delete oldRep;
-                        oldRep = oldRepParent;
-                        oldRep->numChildren_--;
+                    Motion *oldRepParent = oldRep->parent;
+                    delete oldRep;
+                    oldRep = oldRepParent;
+                    oldRep->numChildren_--;
 
-                        if (oldRep->numChildren_ == 0) {
-                            oldRep->inactive_ = true;   // Now that its only child has been removed, this node is inactive as well
-                            inactiveVertices++;
-                        }
-                    // }
-                    // else
-                    //     break;
+                    if (oldRep->numChildren_ == 0)
+                    {
+                        oldRep->inactive_ = true; // Now that its only child has been removed, this node is inactive as well
+                        inactiveVertices++;
+                    }
                 }
             }
         }
@@ -527,61 +503,40 @@ ompl::base::PlannerStatus ompl::geometric::HySST::solve(const base::PlannerTermi
     bool approximate = false;
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::system_clock::now() - start);
-    if (solution == nullptr || dist_ != 0) // If approximate solution
-    {
+
+    if (solution == nullptr) // If closest state to goal is outside goal set
         solution = approxsol;
-        approximate = true;
-        std::cout << "entered approximate solution" << std::endl;
-    }
-
-    // Construct the path from the goal to the start by following the parent pointers
-    // while (solution != nullptr)
-    // {
-    //     mpath.push_back(solution);
-    //     if (solution->solutionPair != nullptr)              // A jump motion does not contain an solutionPair
-    //         pathSize += solution->solutionPair->size() + 1; // +1 for the end state
-    //     solution = solution->parent;
-    // }
-
-    if (mpath[mpath.size() - 1] != nullptr)
-    {
-        // Create a new path object to store the solution path
-        auto path(std::make_shared<PathGeometric>(si_));
-
-        // Reserve space for the path states
-        path->getStates().reserve(pathSize);
-
-        // Add the states to the path in reverse order (from start to goal)
-        for (int i = mpath.size() - 1; i >= 0; --i)
-        {
-            // Append all intermediate states to the path, including starting state,
-            // excluding end vertex
-            if (mpath[i]->solutionPair != nullptr)
-            { // A jump motion does not contain an solutionPair
-                for (auto state : *(mpath[i]->solutionPair))
-                {
-                    path->append(state); // Need to make a new motion to append to trajectory matrix
-                }
-            }
-        }
-
+    else
         solved = true;
+    
+    if (approxdif != 0)    // approximate if not exactly the goal state
+        approximate = true;
+
+    if (solution != nullptr)    // If any state has been successfully propagated
+    {
+        /* set the solution path */
+        auto path(std::make_shared<PathGeometric>(si_));
+        for (int i = prevSolution_.size() - 1; i >= 0; --i)
+        {
+            if (prevSolution_[i]->solutionPair != nullptr)
+            { // A jump motion does not contain an solutionPair
+                for (auto state : *(prevSolution_[i]->solutionPair))
+                    path->append(state);
+            }
+            else if (i == 0)  // If a the last element is a jump motion, add it's parent, since it will not be added as part of the solution pair
+                path->append(prevSolution_[i]->parent->state);
+        }
         pdef_->addSolutionPath(path, approximate, approxdif, getName());
     }
 
-    si_->freeState(xstate);
-    if (rmotion->state)
-        si_->freeState(rmotion->state);
-    rmotion->state = nullptr;
-    delete rmotion;
-
-    OMPL_INFORM("%s: Created %u active vertices and %u inactive vertices in %u iterations", getName().c_str(), nn_->size(), inactiveVertices, iterations);
+    OMPL_INFORM("%s: Created %u active vertices and %u inactive vertices in %u iterations, with %.2f cost, %.2f previous solution cost", getName().c_str(), nn_->size(), inactiveVertices, iterations, solution->accCost_.value(), prevSolutionCost_.value());
     std::cout << "total collision checking duration (microseconds): "
               << totalCollisionTime << std::endl;
-    std::cout << "total duration (microseconds): " << duration.count() << "\n" << std::endl;
+    std::cout << "total duration (microseconds): " << duration.count() << "\n"
+              << std::endl;
 
-    // pdef_->getSolutionPath()->as<ompl::geometric::PathGeometric>()->printAsMatrix(
-    //     std::cout);
+    pdef_->getSolutionPath()->as<ompl::geometric::PathGeometric>()->printAsMatrix(
+        std::cout);
 
     return {solved, approximate};
 }
@@ -602,8 +557,8 @@ void ompl::geometric::HySST::getPlannerData(base::PlannerData &data) const
         if (allMotions[i]->getParent() != nullptr)
             allMotions.push_back(allMotions[i]->getParent());
 
-    // if (prevSolution_.size() != 0)
-    //     data.addGoalVertex(base::PlannerDataVertex(prevSolution_[0]));
+    if (prevSolution_.size() != 0)
+        data.addGoalVertex(base::PlannerDataVertex(prevSolution_[0]->state));
 
     for (auto &allMotion : allMotions)
     {

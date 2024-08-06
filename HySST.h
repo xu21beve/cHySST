@@ -595,7 +595,7 @@ namespace ompl
             double dist_;
 
             /** \brief The best solution we found so far. */
-            std::vector<base::State *> prevSolution_;
+            std::vector<Motion *> prevSolution_;
 
             /** \brief The best solution cost we found so far. */
             base::Cost prevSolutionCost_{std::numeric_limits<double>::quiet_NaN()};

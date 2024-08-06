@@ -426,9 +426,9 @@ bool collisionChecker(std::vector<ompl::base::State *> *propStepStates, std::fun
 class TimeObjective : public ompl::base::StateCostIntegralObjective
 {
 public:
-    TimeObjective(const ompl::base::SpaceInformationPtr &si) : ompl::base::StateCostIntegralObjective(si)
+    TimeObjective(const ompl::base::SpaceInformationPtr &si, double cost) : ompl::base::StateCostIntegralObjective(si)
     {
-        setCostThreshold(ompl::base::Cost(200));
+        setCostThreshold(ompl::base::Cost(cost));
     }
 
     ompl::base::Cost stateCost(const ompl::base::State *state) const
@@ -490,6 +490,7 @@ int main()
 
     // Set the start and goal states
     pdef->setStartAndGoalStates(start, goal);
+    pdef->setOptimizationObjective(ompl::base::OptimizationObjectivePtr(new TimeObjective(si, 10)));
 
     ompl::geometric::HySST cHySST(si);
 
@@ -511,6 +512,6 @@ int main()
     cHySST.setPruningRadius(0.02);
 
     // attempt to solve the planning problem within 10 seconds
-    ompl::base::PlannerStatus solved = cHySST.solve(ompl::base::timedPlannerTerminationCondition(10));
+    ompl::base::PlannerStatus solved = cHySST.solve(ompl::base::timedPlannerTerminationCondition(5));
     std::cout << "solution status: " << solved << std::endl;
 }
